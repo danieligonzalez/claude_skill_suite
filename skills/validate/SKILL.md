@@ -7,7 +7,7 @@ description: "Prove a built model or a number before it is reported. Use after b
 
 Built is not the same as right. This skill proves the output against the contract so the number never has to be walked back. Schema tests already passed in the build; this is the layer they cannot cover: reconciliation, boundaries, and a second opinion.
 
-Ad hoc SQL is allowed here, through `dbtw show --inline` with `ref()` (CONVENTIONS.md rule).
+Ad hoc SQL is allowed here, through the runtime's query path: local dbt Core via `dbtw show --inline` with `ref()`, dbt Platform via `execute_sql` (CONVENTIONS.md rule; identify the runtime per [../shared/runtime.md](../shared/runtime.md)). Before running the checks, read the active warehouse's guardrail file under [../shared/warehouses/](../shared/warehouses/README.md): the counts-walk and second-path SQL follow that file's dialect notes, and its cheap-probes section covers cheaper alternatives on large tables.
 
 ## Two shapes of work arrive here
 

@@ -2,6 +2,8 @@
 
 *Example map. Replace the rows below with your project's own objects; the shape is the point.*
 
+State the project's warehouse and runtime at the top, for example "Snowflake, dbt Platform". On dbt Platform, the discovery API (via the dbt MCP) is the live map and this file is a secondary convenience; on local dbt Core, this file is the primary one-page map.
+
 The one-page answer to "what do we already have". refine-request reads this during the anchor step to map the ask's nouns to real tables without a live excavation; explore-data and build-model consult it before touching model files. It is a map, not documentation: one row per object, grain, the columns that matter, the guarantees that hold. Column-level detail stays in the folder yml files (DRY rule); this file only says enough to route a request.
 
 Upkeep rule: whenever a model lands or changes shape, the same change updates its row here. A stale map misroutes every request that follows, so the map update rides in the same commit as the model. build-model step 6 and the document skill both point at this rule; this is the one place it is stated.

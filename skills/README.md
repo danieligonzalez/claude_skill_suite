@@ -2,6 +2,13 @@
 
 The map of both skill layers. The routing rules live in the CONVENTIONS.md Skills section; this file is where to see what exists and what each piece is for.
 
+## Shared references
+
+Two files under `shared/` set the environment every other skill assumes, and get read before any warehouse-touching SQL:
+
+- `shared/warehouses/`: one file per adapter (DuckDB, Snowflake, BigQuery, Redshift, Databricks) with its cost model, efficiency guardrails, cheap probes, and dialect notes. Identify the warehouse, then read its file.
+- `shared/runtime.md`: dbt Core (local, CLI plus filesystem) vs dbt Platform (Cloud, the dbt MCP server is the default for discovery and querying). Identify the runtime the same way, before choosing which tools to reach for.
+
 ## The repo chain
 
 | Skill | Job | Hands off to |
@@ -29,11 +36,11 @@ Beside the chain, not in it. Routing: consumed once by the asker stays here; any
 |---|---|---|
 | using-dbt-for-analytics-engineering | Core dbt workflow plus reference guides: planning models, discovering data, writing data tests, debugging errors, impact evaluation, writing documentation | Yes. build-model and document lean on its references. It may also self trigger on dbt work; that is fine, it complements the chain |
 | adding-dbt-unit-test | Unit test yml spec, examples, incremental special cases | Yes. build-model delegates unit test mechanics to it |
-| running-dbt-commands | Command syntax, selectors, flags | Selector syntax only. Its preference for plain dbt or MCP tools is overridden by the dbtw rule |
+| running-dbt-commands | Command syntax, selectors, flags | Selector syntax only. On dbt Core its preference for plain dbt is overridden by the dbtw rule; on dbt Platform builds go through the MCP CLI tool group instead per `shared/runtime.md` |
 | fetching-dbt-docs | Look up dbt documentation | Ad hoc, when a dbt question comes up |
 | using-dbt-state | State based selection (state:modified) | Rarely. Single dev repo, full builds are cheap here |
 | building-dbt-semantic-layer | MetricFlow semantic models | Not used. No semantic layer in this repo |
 | answering-natural-language-questions-with-dbt | Query the semantic layer | Not used. Same reason |
 | working-with-dbt-mesh | Model versions, cross project refs | Not used. Single project, no external consumers |
-| configuring-dbt-mcp-server | Set up the dbt MCP server | Not used. MCP was evaluated and rejected: local tools duplicate the CLI and bypass the dbtw lock hand off |
-| troubleshooting-dbt-job-errors | dbt platform job failures | Not used. No platform account |
+| configuring-dbt-mcp-server | Set up the dbt MCP server | Yes, on dbt Platform. The MCP is the default runtime path in Cloud mode: `get_all_models` / `get_node_details` / `get_all_sources` for discovery, `execute_sql` for queries, `build` / `run` / `test` for builds. Local dbt Core still runs on the CLI (`dbtw`/`dbt`); see `shared/runtime.md` for the split |
+| troubleshooting-dbt-job-errors | dbt platform job failures | Used when running on dbt Platform; not applicable to a local-only project |

@@ -1,15 +1,25 @@
 # Analytics engineering conventions
 
-Conventions for a local dbt + DuckDB analytics-engineering workspace. DuckDB stores the data, dbt core transforms it. These rules bind all SQL, models, and docs in the project.
+Conventions for a dbt analytics-engineering project, portable across warehouses (DuckDB, Snowflake, BigQuery, Redshift, Databricks) and across runtimes (local dbt Core or dbt Platform, the Cloud offering). These rules bind all SQL, models, and docs in the project.
+
+## Warehouse and runtime
+
+Two facts about the environment decide how every rule below runs, so establish both at the start of a session, before any SQL:
+
+- **Which warehouse.** It sets the cost model, the SQL dialect, and what counts as an efficient query: BigQuery bills bytes scanned, Snowflake bills warehouse seconds, Redshift rewards dist and sort keys, DuckDB is local and nearly free. Identify the warehouse, then read its file in `skills/shared/warehouses/` and follow its guardrails before writing or running warehouse-touching SQL. The identification protocol is that folder's README.
+- **Which runtime.** Local dbt Core runs dbt through the CLI and discovers models from the filesystem; dbt Platform (Cloud) runs dbt through the dbt MCP server and discovers models from the metadata API. On dbt Platform the MCP is the default: do not grep the whole repo for something the discovery API already knows. The protocol is in `skills/shared/runtime.md`.
+
+Both get said out loud once when a stakeholder is watching, alongside the lane routing: the environment was identified, not assumed.
 
 ## SQL style guide
 
-All SQL in this repo follows these rules:
+All SQL in this project follows these rules:
 
 - Leading commas.
 - No subqueries. Use CTEs and name them after what they hold.
 - Tables and CTEs are referenced by their full name in join conditions and column qualifiers, never through single letter or abbreviated aliases. Write `left join dim_date on payments.payment_date = dim_date.calendar_date`, not `left join dim_date as d on p.payment_date = d.calendar_date`. A `ref()` relation already qualifies by its model name with no alias needed. Alias only when a genuine collision forces it (a self join), and then the alias is a descriptive word, not a letter.
 - `/* */` for multi line comments. `--` only for short single line notes.
+- The shapes and examples here are written in DuckDB idiom, the suite's reference dialect. On another warehouse, translate through the **Dialect and idiom notes** in that warehouse's file: `qualify` support, cast syntax, `date_diff` argument order, and null-safe comparison all vary.
 
 ## DRY
 
@@ -32,21 +42,17 @@ All code stays DRY. Every piece of logic lives in exactly one place:
 - Staging is one model per raw table: incremental merge on the natural key, filtered on `ingested_at`, surrogate key hashed from the normalized natural key.
 - Materializations are a decision, not a default. Dimensions build as tables. Facts build incremental when they qualify, as tables when they do not. Views are reserved for light transformations (renames, casts, thin flags); logic with joins, windows, or aggregation materializes. These rules bind every model that lands, whatever lane the work started in: a model built mid-analysis is still a model and goes through build-model. A view in marts is always a defect; marts aggregate, and aggregation materializes.
 - A fact qualifies for incremental only when all three hold: a cursor column (`ingested_at` or an event date) finds new rows, rows at the grain are never rewritten by late data or a `unique_key` merge with a stated lookback absorbs the rewrite, and a full refresh produces the same table as the incremental path. Full-grid periodic snapshots that regenerate closed periods, small dimensions, and any model whose grain rows churn do not qualify; forcing incremental onto them is a defect, table is the correct answer.
-- Incremental is proven, never asserted: build twice (the second run must process nothing new on a static load and the grain counts must match), then `--full-refresh` and compare counts against the incremental result. This repo's datasets are static, so an incremental model never meets a real second batch; the parity checks are the only evidence it works and are mandatory. The command sequence lives in the build-model template.
+- Incremental is proven, never asserted: build twice (the second run must process nothing new on a static load and the grain counts must match), then `--full-refresh` and compare counts against the incremental result. When datasets are static (as in a local DuckDB project), an incremental model never meets a real second batch; the parity checks are then the only evidence it works and are mandatory. The command sequence lives in the build-model template. The incremental strategy itself (merge, delete+insert, or partition insert_overwrite) and any clustering or partition tuning are warehouse-specific; the model's config follows the incremental and materialization notes in `skills/shared/warehouses/`.
 - Each folder has a yml docs file (`_<folder>__models.yml`). Every model and column gets a description when it lands. Tests follow the placement rule: a guarantee is tested once, at the layer that creates it, and passthrough columns are never re-tested downstream (full rules in the build-model skill). Keep descriptions concise: what the field holds and how it connects to the purpose of the table.
 - Singular data tests go in `dbt/tests/`, one select per file that returns failing rows.
 
-## The database file and its lock
+## Warehouse operations
 
-- DuckDB allows one writer on the file at a time. `profiles.yml` sets `keep_open: false` plus connect retries, so terminal dbt, the VS Code dbt Power User extension, and `ingest.py` hand the lock around on their own. Do not reach for killing lock holders as a first resort; the README has the two recovery moves for when something is genuinely stuck.
-- The DuckDB UI is the exception: it holds the lock while `warehouse` is attached. Run dbt through `dbt/dbtw` (aliased to `dbtw` in the shell), which detaches the database from a running UI over the UI server's local HTTP endpoint, runs dbt, and re-attaches. With no UI running it is a plain dbt call, so `dbtw` is always the right way to run dbt.
-- `dbtw` does not cover `ingest.py`, Power User query previews, or `edr`. For those, run the detach cell in the UI first: `USE memory; DETACH warehouse;`.
-- The UI must start bare (`duckdb -ui`), never with the database file as an argument. A main database can never be detached.
-- `warehouse.duckdb` is committed to the repo and churns whenever anything writes to it. Let the churn ride along with the next real commit; never commit it alone.
+Warehouse-specific operational detail lives in that warehouse's file in `skills/shared/warehouses/`, not here: the DuckDB single-writer lock, the `dbtw` wrapper, and the committed database file (duckdb.md); Snowflake warehouse sizing and the result cache (snowflake.md); BigQuery partition filters and dry-run cost estimation (bigquery.md); Redshift dist and sort keys (redshift.md); Databricks file compaction and Z-order (databricks.md). Read the file for the active warehouse. Everything else in this document is warehouse-agnostic.
 
 ## Observability
 
-Elementary (dbt package plus the `edr` cli) records run results, test results, and schemas in `main_elementary` through its own on-run-end hooks. The README has the report command. `edr` opens its own connection, so it counts as a writer: run it after dbt finishes and with the UI detached. `edr monitor` is unproven on DuckDB; use `edr report` only.
+Elementary (dbt package plus the `edr` cli, optional) records run results, test results, and schemas in `main_elementary` through its own on-run-end hooks. On dbt Platform the same run and test history is available through the MCP (`get_model_health`, `get_model_performance`) with no extra package. `edr` opens its own connection to the warehouse, so on a local DuckDB project it counts as a writer: run it after dbt finishes and with the UI detached (`edr monitor` is unproven on DuckDB; use `edr report`).
 
 ## Skills
 
@@ -58,11 +64,11 @@ Two layers of skills operate in this repo:
 
 The full map of both layers, including which dbt bundle skills the chain uses and where their files live on disk, is in `skills/README.md`. When both layers apply, the repo skill is the entry point and the dbt bundle serves as reference material from inside it. Three rules override anything any skill says:
 
-- dbt always runs through `dbtw`, never plain `dbt` and never MCP tools. The lock section above explains why.
+- How dbt runs follows the runtime (`skills/shared/runtime.md`). On local dbt Core it runs through the CLI: `dbtw` in a DuckDB-UI project (it hands off the lock), plain `dbt` otherwise. On dbt Platform (Cloud) the dbt MCP server is the default for discovery, querying, and builds. Identify the runtime before the first dbt action.
 - dbt selections name models explicitly: `--select model_a model_b`. Never graph operators (`+`), never path or fqn selectors. An explicit list is auditable at a glance and cannot surprise-build half the DAG.
-- Ad hoc SQL happens only inside explore-data, validate, and quick-query, and runs through `dbtw show` with `ref()` or `source()`. Quick-query answers run from files in `dbt/analyses/` by name (the skill's workbench rule); `--inline` covers profiling probes, validation checks, and throwaway shape checks. A question worth answering more than once is a model, not a query.
+- Ad hoc SQL happens only inside explore-data, validate, and quick-query, always after the active warehouse's guardrail file has been read, and runs through the runtime's query path: `dbtw show --inline` with `ref()` or `source()` on local dbt Core, `execute_sql` on dbt Platform. Quick-query answers run from files in `dbt/analyses/` by name (the skill's workbench rule); the inline path covers profiling probes, validation checks, and throwaway shape checks. A question worth answering more than once is a model, not a query.
 
-Delegation follows a manager and worker split: the main session frames, judges, and signs off; low level well defined execution (a profiling battery, writing files from an agreed sketch, running a check suite) goes to sonnet subagents that return compressed findings, never raw output. Database touching subagents run one at a time: DuckDB has one writer and the dbtw hand off is not reentrant, so two subagents that query or build must never run in parallel.
+Delegation follows a manager and worker split: the main session frames, judges, and signs off; low level well defined execution (a profiling battery, writing files from an agreed sketch, running a check suite) goes to sonnet subagents that return compressed findings, never raw output. Database touching subagents run one at a time: on DuckDB there is one writer and the `dbtw` hand off is not reentrant, and on a shared cloud warehouse parallel writers race on state and multiply cost, so two subagents that query or build must never run in parallel.
 
 Model routing follows the nuance of the job. The judgment skills stay with the strongest model in the main session: refine-request, review, document, and every framing, finding, and sign off, because their value is taste and each miss is expensive. The defined skills are sonnet work when they delegate: explore-data's profiling battery, validate's check suite, and build-model's typing once the sketch is agreed, because the spec is complete and a stronger model adds latency, not quality. The routing is worth one spoken sentence whenever a hand off happens ("this battery is fully specified, so a faster model runs it"): which model a step deserves is part of the design, and saying it shows the orchestration was chosen, not defaulted.
 
@@ -70,7 +76,7 @@ When working under time pressure, such as a live pairing session, the subagent h
 
 ## Working rules
 
-- Ingestion runs from `duckdb/`. dbt runs from `dbt/` (`dbtw` handles the directory itself).
-- A dataset that is not already in raw follows `skills/shared/new-dataset-intake.md`: read_csv_auto to query it where it sits, the ingest.py path the moment it feeds a model.
+- In a local DuckDB project, ingestion runs from `duckdb/` and dbt runs from `dbt/` (`dbtw` handles the directory itself). Other warehouses load data through their own native path (a warehouse copy or load command, dbt seeds, or external tables) and run plain `dbt`; the directory layout is the project's to set.
+- A dataset that is not already in raw follows `skills/shared/new-dataset-intake.md`.
 - Repo changes ship as a PR and squash merge to main. One PR per logical step.
 - Docs and commit messages are plain declarative prose. No em-dashes.

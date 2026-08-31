@@ -28,13 +28,16 @@ The routing test is consumption: an answer looked at once by the asker stays in 
 ## What's in here
 
 ```
-CONVENTIONS.md      The doctrine the skills reference: SQL style, DRY, model and
-                    materialization conventions, the database lock, delegation.
+CONVENTIONS.md      The doctrine the skills reference: warehouse + runtime setup,
+                    SQL style, DRY, model and materialization conventions, delegation.
 skills/
   README.md         The skills index and the dbt bundle it leans on.
   refine-request/   explore-data/   build-model/
   validate/         review/         document/   quick-query/
   shared/           Cross-skill references: warehouse map, query shapes, dataset intake.
+    warehouses/     Per-adapter cost model and guardrails: README.md plus
+                    duckdb.md, snowflake.md, bigquery.md, redshift.md, databricks.md.
+    runtime.md      dbt Core (local CLI) vs dbt Platform (dbt MCP server) tool routing.
 ```
 
 Each skill is a `SKILL.md` plus a `references/` folder of templates and worked examples. The skills reference `CONVENTIONS.md` by name for the rules they share, so the doctrine lives in exactly one place.
@@ -47,9 +50,9 @@ Each skill is a `SKILL.md` plus a `references/` folder of templates and worked e
 
 ### Assumptions the examples make
 
-- **dbt core** for transformations, run through a thin wrapper named `dbtw` (in the source project it hands off a DuckDB UI lock; substitute plain `dbt` if you do not need that). All dbt selections name models explicitly, never graph operators.
-- **DuckDB** as the local warehouse, with schemas `raw`, `main_staging`, `main_marts`. Dialect notes call out where DuckDB and Snowflake agree or differ.
-- **dbt_utils** installed, and the `dbt@dbt-agent-marketplace` skills bundle available for dbt mechanics (unit tests, command syntax, debugging). `skills/README.md` lists which bundle skills the chain uses.
+- **Portable across warehouses**: DuckDB, Snowflake, BigQuery, Redshift, and Databricks, each with its own cost model, guardrails, and dialect notes in `skills/shared/warehouses/`. **DuckDB is the reference dialect** for the examples in this repo (schemas `raw`, `main_staging`, `main_marts`); translate through the target warehouse's file before running a shape elsewhere.
+- **Portable across runtimes**: local dbt Core (CLI plus filesystem, run through a thin wrapper named `dbtw` that in the source project hands off a DuckDB UI lock; substitute plain `dbt` if you do not need that) or dbt Platform/Cloud, where the dbt MCP server is the default for discovery, querying, and builds. See `skills/shared/runtime.md`. All dbt selections name models explicitly, never graph operators.
+- **dbt_utils** installed, and the `dbt@dbt-agent-marketplace` skills bundle available for dbt mechanics (unit tests, command syntax, debugging, the dbt MCP server on Platform). `skills/README.md` lists which bundle skills the chain uses.
 - **Elementary** (optional) for run and test-result history, referenced in the anomaly-detection and documentation guidance.
 
 None of these are load-bearing for the method. The value is the workflow: frame before building, profile before trusting, test the invariant once at the layer that owns it, prove the number a second way before it leaves the room, and document for the person who will act on it.

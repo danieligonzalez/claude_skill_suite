@@ -10,7 +10,8 @@ Establish the facts about the data before anything is built on it. The output is
 ## Rules
 
 - Aggregates only. Never dump rows. A sample is at most 5 rows, and only when the shape of a value matters.
-- Every query runs through `dbtw show --inline` with `{{ source() }}` or `{{ ref() }}` (CONVENTIONS.md rule).
+- Query path is runtime aware: local dbt Core runs every query through `dbtw show --inline` with `{{ source() }}` or `{{ ref() }}`; dbt Platform runs it through `execute_sql` (CONVENTIONS.md rule; identify the runtime per [../shared/runtime.md](../shared/runtime.md)).
+- Before profiling, identify the warehouse and read its file under [../shared/warehouses/](../shared/warehouses/README.md). The battery below is nearly free on DuckDB but can be a costly full scan on BigQuery or Snowflake, so on large cloud warehouses follow that file's cheap-probes guidance: metadata for counts, scope checks to a partition window.
 - The moment a profiling query starts computing the requested metric, stop. That is the build, and it belongs to build-model after refine-request has framed it.
 - Briefs live in `exploration/` at the repo root, a sibling of `dbt/`, never inside it. Check there first. If a brief already covers the table, read it instead of re-profiling. Re-run a check only if the data has been re-ingested since the brief was written.
 
@@ -33,7 +34,7 @@ A brief at `exploration/<table or topic>.md` in the repo root folder (the rules 
 
 ## Delegation
 
-The profile is well defined work: hand it to a sonnet subagent. The manager session decides which checks the framing needs; the subagent runs them through `dbtw show --inline` and returns one line per finding with its number, plus a draft brief. The manager reviews the numbers, writes the implications, and commits the brief. Judgment stays with the manager; so does anything surprising. Subagents run one at a time (CONVENTIONS.md delegation rule): profile tables serially, never one agent per table in parallel. When working under time pressure, skip the hand off and run the battery inline; the checks are identical either way (CONVENTIONS.md pacing rule).
+The profile is well defined work: hand it to a sonnet subagent. The manager session decides which checks the framing needs; the subagent runs them through the runtime's query path (`dbtw show --inline` or `execute_sql`, per the Rules above) and returns one line per finding with its number, plus a draft brief. The manager reviews the numbers, writes the implications, and commits the brief. Judgment stays with the manager; so does anything surprising. Subagents run one at a time (CONVENTIONS.md delegation rule): profile tables serially, never one agent per table in parallel. When working under time pressure, skip the hand off and run the battery inline; the checks are identical either way (CONVENTIONS.md pacing rule).
 
 ## Hand off
 

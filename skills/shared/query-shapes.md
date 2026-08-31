@@ -1,6 +1,8 @@
 # Query shapes
 
-Shared by explore-data (profiling, before building) and validate (checks, after building). Every query runs as `dbtw show --inline "<sql>"`: double quotes around the SQL for the shell, single quotes inside for SQL strings, jinja braces need no escaping. Aggregates return one row, so the default show limit never truncates them. Raw columns are all varchar; cast before date or numeric work. Examples below use the real sources and an example mart, `fct_payments_monthly`; substitute the model at hand.
+Shared by explore-data (profiling, before building) and validate (checks, after building). Every query runs as `dbtw show --inline "<sql>"`: double quotes around the SQL for the shell, single quotes inside for SQL strings, jinja braces need no escaping. That is the local dbt Core path; on dbt Platform the same SQL runs through `execute_sql` instead. See `runtime.md` for which path applies. Aggregates return one row, so the default show limit never truncates them. Raw columns are all varchar; cast before date or numeric work. Examples below use the real sources and an example mart, `fct_payments_monthly`; substitute the model at hand.
+
+These shapes are written in DuckDB idiom, the reference dialect for this doc. On another warehouse, translate through that warehouse's dialect and idiom notes and reach for its cheap probes section (metadata for row counts, partition-scoped windows) instead of scanning the table. See `warehouses/README.md`.
 
 ## Grain proof
 
