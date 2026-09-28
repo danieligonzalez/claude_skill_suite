@@ -25,6 +25,12 @@ The skills were extracted from a working dbt + DuckDB project and generalized. E
 
 The routing test is consumption: an answer looked at once by the asker stays in the one-off lane; anything reused, refreshed, or trusted by others goes through the chain.
 
+**The outward lane** (tell the people who act on the work):
+
+| Skill | Job |
+|---|---|
+| `stakeholder-communication` | Turn finished or in-flight work into the deliverable a named audience can act on: a status update, a decision request with a recommendation, a bad-news or data-quality note, a research package for stakeholder input, a leadership readout, or an ask for help. Always starts by asking which output is needed, then drafts in the matching template and register. Never publishes on its own. |
+
 ## What's in here
 
 ```
@@ -34,6 +40,8 @@ skills/
   README.md         The skills index and the dbt bundle it leans on.
   refine-request/   explore-data/   build-model/
   validate/         review/         document/   quick-query/
+  stakeholder-communication/   Templates and voice exemplars for updates,
+                               decision requests, bad news, and readouts.
   shared/           Cross-skill references: warehouse map, query shapes, dataset intake.
     warehouses/     Per-adapter cost model and guardrails: README.md plus
                     duckdb.md, snowflake.md, bigquery.md, redshift.md, databricks.md.
@@ -44,7 +52,7 @@ Each skill is a `SKILL.md` plus a `references/` folder of templates and worked e
 
 ## Using it
 
-1. Copy the seven skill folders from `skills/` into your project's `.claude/skills/` (drop the `shared/` folder in alongside them; the relative links between skills expect it there).
+1. Copy the eight skill folders from `skills/` into your project's `.claude/skills/` (drop the `shared/` folder in alongside them; the relative links between skills expect it there).
 2. Fold `CONVENTIONS.md` into your project's `CLAUDE.md`, or keep it as its own file and adjust the naming to your stack. The skills cite it as `CONVENTIONS.md`.
 3. Replace `skills/shared/warehouse-map.md` with a map of your own objects. The example map's shape is the point, not its rows.
 
