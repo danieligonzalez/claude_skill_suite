@@ -61,6 +61,7 @@ Two layers of skills operate in this repo:
 - The dbt agent skills bundle from dbt-labs (`dbt@dbt-agent-marketplace`, enabled in `.claude/settings.json`) covers dbt mechanics: unit test yml spec, debugging references, command syntax.
 - Repo skills in `skills/` encode the working method, built one PR at a time. The chain in runtime order: refine-request, explore-data, build-model, validate, review, document. Each skill states when to hand off to its neighbor, so scopes stay exclusive: refine decides, explore looks, build lands, validate proves, review judges, document explains.
 - A seventh skill, quick-query, sits beside the chain for one-off questions. The routing test: an answer consumed once, now, by the person asking stays a query in that lane; anything reused, refreshed, or trusted by others later goes through the chain. Keepers live in `dbt/analyses/`, and the second ask of the same question becomes a model.
+- An eighth skill, stakeholder-communication, sits downstream of the chain. It turns finished or in-flight work into what a named audience can act on (a status update, a decision request with a recommendation, a bad-news note, a research package, a readout) and hands the doc-building itself to document. It drafts; the user publishes.
 
 The full map of both layers, including which dbt bundle skills the chain uses and where their files live on disk, is in `skills/README.md`. When both layers apply, the repo skill is the entry point and the dbt bundle serves as reference material from inside it. Three rules override anything any skill says:
 

@@ -28,6 +28,14 @@ Two files under `shared/` set the environment every other skill assumes, and get
 
 Beside the chain, not in it. Routing: consumed once by the asker stays here; anything reused goes through the chain, and the second ask of the same question becomes a model.
 
+## The outward lane
+
+| Skill | Job | Hands off to |
+|---|---|---|
+| stakeholder-communication | Draft the deliverable a named audience acts on: status update, decision request, bad-news or data-quality note, research package, leadership readout, or ask for help. Intake first, then template plus register | document, validate, review |
+
+Downstream of the chain. It reports on work the chain produced and never publishes on its own; the user decides when and where a draft ships.
+
 ## The dbt bundle
 
 `dbt@dbt-agent-marketplace` version 1.4.1, installed project scoped to this repo. The skill files live at `~/.claude/plugins/cache/dbt-agent-marketplace/dbt/1.4.1/skills/`; open any skill's `SKILL.md` there to read it, or use the `/plugin` panel in an interactive session. Update the pin through `/plugin`.
